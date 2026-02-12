@@ -3,6 +3,7 @@ MovieMind: An Intelligent Content-Based Movie Recommender
 
 MovieMind is a full-stack recommendation platform that utilizes a vectorized NLP pipeline to suggest films based on plot similarity and metadata engineering. It balances textual relevance with audience validation through a popularity-aware ranking algorithm.
 
+<img width="1902" height="943" alt="Screenshot 2026-02-12 172648" src="https://github.com/user-attachments/assets/c8a27f34-6c1a-499c-b09b-de52c6573182" />
 
 * * * * *
 
