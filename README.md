@@ -25,7 +25,7 @@ Live Demo & Preview
 
 -   **Live Application:** 
 
--   **API Documentation:** 
+-   **API Documentation:** https://developer.themoviedb.org/docs
 
 * * * * *
 
@@ -143,4 +143,4 @@ Trade-offs & Limitations
 
 * * * * *
 
-**Developed by [Your Name] as a Portfolio Project.**
+**Developed by Aditya Gupta**
