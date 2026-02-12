@@ -12,6 +12,8 @@ venv/
 
 # Data & Models (Crucial for ML)
 # Don't upload the raw 400MB+ datasets or massive similarity matrices
+models/*.pkl
+models/*.h5
 
 # OS Files
 .DS_Store
