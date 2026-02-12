@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const TMDB_API_KEY = '4512aeeeacb7923520deb43aae7bda48';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 
