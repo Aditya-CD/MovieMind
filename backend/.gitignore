@@ -8,6 +8,7 @@ venv/
 
 # Jupyter Notebooks
 .ipynb_checkpoints
+*.ipynb
 
 # Data & Models (Crucial for ML)
 # Don't upload the raw 400MB+ datasets or massive similarity matrices
