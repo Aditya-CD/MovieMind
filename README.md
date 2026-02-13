@@ -1,146 +1,131 @@
-MovieMind: An Intelligent Content-Based Movie Recommender
-=========================================================
+# MovieMind: An Intelligent Content-Based Movie Recommender
 
 MovieMind is a full-stack recommendation platform that utilizes a vectorized NLP pipeline to suggest films based on plot similarity and metadata engineering. It balances textual relevance with audience validation through a popularity-aware ranking algorithm.
 
-<img width="1902" height="943" alt="Screenshot 2026-02-12 172648" src="https://github.com/user-attachments/assets/c8a27f34-6c1a-499c-b09b-de52c6573182" />
+<img width="1902" height="943" alt="Screenshot" src="https://github.com/user-attachments/assets/c8a27f34-6c1a-499c-b09b-de52c6573182" />
 
-* * * * *
+---
 
-System Architecture
------------------------
+## System Architecture
 
 The project is split into a **High-Performance FastAPI Backend** and a **Modern React Frontend**. Unlike basic recommenders, MovieMind incorporates:
 
--   **Feature Engineering:** Optimized metadata extraction (Top 3 Cast, Director, and Decade-based segmentation).
+* **Feature Engineering:** Optimized metadata extraction (Top 3 Cast, Director, and Decade-based segmentation).
+* **NLP Pipeline:** TF-IDF Vectorization with Unigram/Bigram support to capture semantic context.
+* **Hybrid Ranking:** A custom scoring function that weights Cosine Similarity against logarithmic popularity scaling.
+* **Cloud-Native Model Storage:** Utilizes a custom "Self-Healing" logic to fetch large ML artifacts (200MB+) from Hugging Face Datasets on-the-fly, keeping the production image lightweight.
 
--   **NLP Pipeline:** TF-IDF Vectorization with Unigram/Bigram support to capture semantic context.
+---
 
--   **Hybrid Ranking:** A custom scoring function that weights Cosine Similarity against logarithmic popularity scaling.
+## Live Demo & Preview
 
-* * * * *
+* **Live Application:** [https://moviemind-ag.vercel.app/](https://moviemind-ag.vercel.app/)
+* **API Documentation:** [https://developer.themoviedb.org/docs](https://developer.themoviedb.org/docs)
 
-Live Demo & Preview
-----------------------
+[![Hugging Face Dataset](https://img.shields.io/badge/Hugging%20Face-Dataset-blue)](https://huggingface.co/)
 
--   **Live Application:** https://moviemind-ag.vercel.app/
+---
 
--   **API Documentation:** https://developer.themoviedb.org/docs
+## Quick Start (Docker - Recommended)
 
-* * * * *
+The fastest way to run the full stack locally:
 
-Installation & Setup
-------------------------
-
-### 1\. Backend Setup (Python)
-
-Navigate to the `backend/` directory and ensure you have Python 3.9+ installed.
-
-Bash
-
+```bash
+docker-compose up --build
 ```
+
+Frontend: [http://localhost](http://localhost)
+Backend: [http://localhost:8000](http://localhost:8000)
+
+---
+
+## Manual Development Setup
+
+<details>
+<summary>View Manual Instructions</summary>
+
+### Backend
+
+```bash
 cd backend
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Step 1: Generate ML Artifacts (Pickles)
 python scripts/model_builder.py
-
-# Step 2: Start the FastAPI Server
-uvicorn app.main:app --reload
-
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-**Verification:** Once running, verify the engine is live by visiting:
+### Frontend
 
-`http://127.0.0.1:8000/recommend/Batman%20Begins`
-
-### 2\. Frontend Setup (React)
-
-Navigate to the `frontend/` directory.
-
-Bash
-
-```
+```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Configure API (Add your TMDB Key in src/services/api.js)
 npm start
-
 ```
 
-**Access:** The UI will be available at `http://localhost:3000`.
+</details>
 
-* * * * *
+---
 
-Recommendation Logic & Improvements
---------------------------------------
+## Recommendation Logic & Improvements
 
-### Technical Evolution
+Technical Evolution
 
-| **Metric** | **Previous Version** | **MovieMind (Current)** |
-| --- | --- | --- |
-| **Algorithm** | Bag-of-Words | **TF-IDF with Sublinear Scaling** |
-| **Context** | Unigrams | **Unigram + Bigram Support** |
-| **Ranking** | Pure Similarity | **Popularity-Aware (Vote Count Weighting)** |
-| **Temporal Data** | Ignored | **Decade-Based Tokenization** |
+| **Metric**     | **Previous Version** | **MovieMind (Current)**                     |
+| -------------- | -------------------- | ------------------------------------------- |
+| Algorithm      | Bag-of-Words         | **TF-IDF with Sublinear Scaling**           |
+| Context        | Unigrams             | **Unigram + Bigram Support**                |
+| Ranking        | Pure Similarity      | **Popularity-Aware (Vote Count Weighting)** |
+| Temporal Data  | Ignored              | **Decade-Based Tokenization**               |
+| Data Precision | float64 (Standard)   | **float32 Quantized (50% RAM reduction)**   |
+| Model Hosting  | Local Git LFS        | **Hugging Face Dataset Registry**           |
+| Deployment     | Manual Scripting     | **Docker Compose Orchestration**            |
 
-### Mathematical Foundation
+Mathematical Foundation
 
 The system computes the **Cosine Similarity** between sparse TF-IDF vectors. To ensure recommendations are both relevant and high-quality, the similarity score is adjusted:
 
-$$FinalScore = CosineSim \times \log(VoteCount + 1)$$
+FinalScore = CosineSim × log(VoteCount + 1)
 
-* * * * *
+---
 
-Project Structure
---------------------
-
-Plaintext
+## Project Structure
 
 ```
 MovieMind/
+├── docker-compose.yml      # Multi-container orchestration
 ├── backend/
+│   ├── Dockerfile          # Python 3.12-slim environment
 │   ├── app/                # FastAPI routes & Recommender logic
-│   ├── models/             # Pickle artifacts (Similarity matrix, TF-IDF)
+│   ├── models/             # Runtime-downloaded pickle artifacts
 │   ├── scripts/            # model_builder.py training script
 │   └── requirements.txt    # Python dependencies
 └── frontend/
+    ├── Dockerfile          # Multi-stage build (Node + Nginx)
+    ├── nginx.conf          # Reverse proxy configuration
     ├── src/
     │   ├── components/     # UI components (HeroCard, SearchBar, etc.)
     │   └── services/       # API integration layer
     └── App.css             # Cinematic glassmorphism styling
-
 ```
 
-* * * * *
+---
 
-Key Features
----------------
+## Key Features
 
--   **Smart Search:** Real-time autocomplete fetching from a dataset of 4,800+ movies.
+* **Smart Search:** Real-time autocomplete fetching from a dataset of 4,800+ movies.
+* **Cinematic UI:** Glassmorphism design with backdrop-filter blurs and custom particle backgrounds.
+* **Responsive Grid:** A strict CSS Grid implementation ensuring a perfect 5-column layout on desktop.
+* **Decade Filtering:** Automatically suggests movies from similar eras to preserve stylistic consistency.
+* **Containerized Deployment:** Fully reproducible multi-container environment using Docker Compose.
 
--   **Cinematic UI:** Glassmorphism design with backdrop-filter blurs and custom particle backgrounds.
+---
 
--   **Responsive Grid:** A strict CSS Grid implementation ensuring a perfect 5-column layout on desktop.
+## Trade-offs & Limitations
 
--   **Decade Filtering:** Automatically suggests movies from similar eras to preserve stylistic consistency.
+* **Static Model:** The system currently uses a pre-computed similarity matrix and does not learn from real-time user feedback.
+* **Cold Start:** While excellent for new users (no history needed), it lacks personalization based on individual user behavior.
+* **Memory Constraints:** While optimized to float32, the system is currently bound by the RAM limits of the hosting provider (Render Free Tier).
+* **Artifact Cold Start:** The first startup may take approximately 30 seconds while the system streams model artifacts from Hugging Face.
 
-* * * * *
+---
 
-Trade-offs & Limitations
----------------------------
-
--   **Static Model:** The system currently uses a pre-computed similarity matrix and does not learn from real-time user feedback.
-
--   **Cold Start:** While excellent for new users (no history needed), it lacks personalization based on individual user behavior.
-
--   **Scalability:** For datasets larger than 100k+ rows, an **Approximate Nearest Neighbors (ANN)** approach would be required to replace the current matrix.
-
-* * * * *
-
-**Developed by Aditya Gupta**
+Developed by Aditya Gupta
