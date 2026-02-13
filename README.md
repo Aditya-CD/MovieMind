@@ -83,7 +83,7 @@ Mathematical Foundation
 
 The system computes the **Cosine Similarity** between sparse TF-IDF vectors. To ensure recommendations are both relevant and high-quality, the similarity score is adjusted:
 
-FinalScore = CosineSim × log(VoteCount + 1)
+$$FinalScore = CosineSim \times \log(VoteCount + 1)$$
 
 ---
 
