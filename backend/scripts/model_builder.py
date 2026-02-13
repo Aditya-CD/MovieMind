@@ -2,12 +2,13 @@ import numpy as np
 import pandas as pd
 import ast
 import pickle
+import gc
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import normalize
 
-# Get project root dynamically
+# --- DIRECTORY SETUP ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 MODEL_DIR = BASE_DIR / "models"
@@ -15,6 +16,7 @@ MODEL_DIR = BASE_DIR / "models"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# --- HELPER FUNCTIONS ---
 def convert(obj):
     try:
         return [i["name"] for i in ast.literal_eval(obj)]
@@ -40,19 +42,21 @@ def fetch_director(obj):
         return ""
 
 
+# --- MAIN BUILDER ---
 def build_model():
     print("Loading datasets...")
-    movies_raw = pd.read_csv(DATA_DIR / "tmdb_5000_movies.csv")
-    credits_raw = pd.read_csv(DATA_DIR / "tmdb_5000_credits.csv")
+    try:
+        movies_raw = pd.read_csv(DATA_DIR / "tmdb_5000_movies.csv")
+        credits_raw = pd.read_csv(DATA_DIR / "tmdb_5000_credits.csv")
+    except FileNotFoundError:
+        print("Error: CSV files not found in data/ folder.")
+        return
 
     # Merge data
     df = movies_raw.merge(credits_raw, on="title")
 
-    # --- CRITICAL FIX: CLEANING FIRST ---
-    # 1. Remove duplicates to ensure 1-to-1 title mapping
+    # --- DATA CLEANING ---
     df.drop_duplicates(subset="title", inplace=True)
-
-    # 2. Process dates and drop NAs immediately to keep rows synchronized
     df["release_date"] = pd.to_datetime(df["release_date"], errors="coerce")
     df.dropna(subset=["overview", "release_date"], inplace=True)
 
@@ -61,8 +65,7 @@ def build_model():
     df["decade_str"] = df["decade"].astype(str) + "s"
     df = df[df["decade_str"] != "<NA>s"]
 
-    # 3. RESET INDEX: This is the most important line.
-    # It ensures the DataFrame index 0, 1, 2... matches the Similarity Matrix row 0, 1, 2...
+    # CRITICAL: Reset index to ensure matrix synchronization
     df.reset_index(drop=True, inplace=True)
 
     print(f"Cleaned dataset. Total movies: {len(df)}")
@@ -74,34 +77,21 @@ def build_model():
     df["cast_list"] = df["cast"].apply(convert_cast)
     df["director"] = df["crew"].apply(fetch_director)
 
-    # Create tags for ML
-    df["genres_tags"] = df["genres_list"].apply(
-        lambda x: [i.replace(" ", "") for i in x]
-    )
-    df["keywords_tags"] = df["keywords_list"].apply(
-        lambda x: [i.replace(" ", "") for i in x]
-    )
-    df["cast_tags"] = df["cast_list"].apply(lambda x: [i.replace(" ", "") for i in x])
-    df["director_tag"] = df["director"].apply(
-        lambda x: [x.replace(" ", "")] if x else []
-    )
-    df["overview_tags"] = df["overview"].apply(lambda x: x.split())
-    df["decade_tags"] = df["decade_str"].apply(lambda x: [x])
-
+    # Creating ML tags
     df["tags"] = (
-        df["overview_tags"]
-        + df["genres_tags"]
-        + df["keywords_tags"]
-        + df["cast_tags"]
-        + df["director_tag"]
-        + df["decade_tags"]
+        df["overview"].apply(lambda x: x.split())
+        + df["genres_list"].apply(lambda x: [i.replace(" ", "") for i in x])
+        + df["keywords_list"].apply(lambda x: [i.replace(" ", "") for i in x])
+        + df["cast_list"].apply(lambda x: [i.replace(" ", "") for i in x])
+        + df["director"].apply(lambda x: [x.replace(" ", "")] if x else [])
+        + df["decade_str"].apply(lambda x: [x])
     )
 
-    # Create the training dataframe
+    # 1. Main DataFrame for searching
     new_df = df[["id", "title", "tags", "vote_count"]].copy()
     new_df["tags"] = new_df["tags"].apply(lambda x: " ".join(x).lower())
 
-    # Create the detailed enriched dataframe from the SAME 'df'
+    # 2. Detailed DataFrame for the UI
     enriched_final = df[
         [
             "id",
@@ -129,10 +119,14 @@ def build_model():
 
     vectors = tfidf.fit_transform(new_df["tags"])
     vectors = normalize(vectors)
-    similarity = cosine_similarity(vectors)
 
-    # --- SAVING ---
-    print("Saving model artifacts...")
+    # OPTIMIZATION: Convert matrix to float32 to save 50% RAM
+    print("Computing similarity matrix (float32 optimized)...")
+    similarity = cosine_similarity(vectors).astype("float32")
+
+    # --- SAVING ARTIFACTS ---
+    print("Saving optimized artifacts to models/ folder...")
+
     with open(MODEL_DIR / "movies.pkl", "wb") as f:
         pickle.dump(new_df, f)
 
@@ -142,7 +136,14 @@ def build_model():
     with open(MODEL_DIR / "similarity.pkl", "wb") as f:
         pickle.dump(similarity, f)
 
-    print("Success! All artifacts are synchronized.")
+    with open(MODEL_DIR / "tfidf.pkl", "wb") as f:
+        pickle.dump(tfidf, f)
+
+    print("Success! All optimized artifacts are synchronized.")
+
+    # Force memory release
+    del similarity, vectors, tfidf, df, new_df, enriched_final
+    gc.collect()
 
 
 if __name__ == "__main__":

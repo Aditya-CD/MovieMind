@@ -1,15 +1,47 @@
+import os
 import pickle
 import numpy as np
 import pandas as pd
+import requests
 from pathlib import Path
 
-# Dynamic model path
+# --- CONFIGURATION ---
+# Your Hugging Face Resolve URL
+HF_BASE_URL = "https://huggingface.co/datasets/Aadiii03/moviemind-models/resolve/main"
+MODEL_FILES = ["movies.pkl", "movies_enriched.pkl", "similarity.pkl"]
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_DIR = BASE_DIR / "models"
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# Load artifacts once at startup
+def download_if_missing():
+    """Downloads model artifacts from Hugging Face if not found locally."""
+    for file_name in MODEL_FILES:
+        file_path = MODEL_DIR / file_name
+        if not file_path.exists():
+            print(f"--- {file_name} missing. Downloading from Hugging Face... ---")
+            url = f"{HF_BASE_URL}/{file_name}"
+            try:
+                with requests.get(url, stream=True, timeout=30) as r:
+                    r.raise_for_status()
+                    with open(file_path, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                print(f"Successfully downloaded {file_name}")
+            except Exception as e:
+                print(f"Error downloading {file_name}: {e}")
+                raise SystemExit(
+                    "Required model files could not be retrieved. Server stopping."
+                )
+
+
+# --- LOAD ARTIFACTS ---
+download_if_missing()
+
+
 def load_artifacts():
+    print("Loading artifacts into memory...")
     with open(MODEL_DIR / "movies.pkl", "rb") as f:
         m = pickle.load(f)
     with open(MODEL_DIR / "movies_enriched.pkl", "rb") as f:
@@ -17,22 +49,17 @@ def load_artifacts():
     with open(MODEL_DIR / "similarity.pkl", "rb") as f:
         s = pickle.load(f)
 
-    # CRITICAL: Synchronize indices immediately after loading
-    # This ensures row 0 in 'm' is row 0 in 'me' and row 0 in 's'
     m = m.reset_index(drop=True)
     me = me.reset_index(drop=True)
-
     return m, me, s
 
 
 movies, movies_enriched, similarity = load_artifacts()
 
 
+# --- HELPER & CORE LOGIC ---
 def get_movie_details(idx):
-    """Get enriched movie details by integer position (iloc)"""
-    # Use .iloc to ensure we are grabbing the exact row matching the matrix
     movie = movies_enriched.iloc[idx]
-
     return {
         "id": int(movie["id"]),
         "title": movie["title"],
@@ -54,34 +81,19 @@ def get_movie_details(idx):
 
 
 def recommend(movie_name: str, top_n: int = 5):
-    """
-    Finds the movie by title and returns the selected movie info
-    plus popularity-weighted recommendations.
-    """
-    # 1. Case-insensitive search for the movie row
     movie_search = movies[movies["title"].str.lower() == movie_name.lower()]
-
     if movie_search.empty:
         return None
 
-    # 2. Get the ACTUAL row position (0, 1, 2...)
-    # Because we reset_index above, the first item's index is its position.
     movie_pos = movie_search.index[0]
-
-    # 3. Calculate Scores
     sim_scores = similarity[movie_pos]
 
-    # Apply Popularity Boost (Logarithmic scaling)
-    # This ensures textually similar movies that are well-known rank higher
     vote_counts = movies["vote_count"].fillna(0).values
     popularity_boost = np.log(vote_counts + 1)
     final_scores = sim_scores * popularity_boost
 
-    # 4. Get top indices (excluding the movie itself)
-    # argsort gives us the positions (0, 1, 2...) which match our .iloc logic
     top_indices = final_scores.argsort()[::-1][1 : top_n + 1]
 
-    # 5. Fetch details using the verified row position
     selected_movie = get_movie_details(movie_pos)
     recommendations = [get_movie_details(i) for i in top_indices]
 
@@ -89,5 +101,4 @@ def recommend(movie_name: str, top_n: int = 5):
 
 
 def get_all_movie_titles():
-    """Return all available movie titles for autocomplete"""
     return sorted(movies["title"].tolist())
