@@ -23,7 +23,7 @@ The project is split into a **High-Performance FastAPI Backend** and a **Modern 
 Live Demo & Preview
 ----------------------
 
--   **Live Application:** 
+-   **Live Application:** https://moviemind-ag.vercel.app/
 
 -   **API Documentation:** https://developer.themoviedb.org/docs
 
